@@ -15,3 +15,13 @@ target_include_directories(orderbook
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
 )
+
+add_executable(orderbook_benchmark
+    benchmarks/Benchmark.cpp
+    src/OrderBook.cpp
+)
+
+target_include_directories(orderbook_benchmark
+    PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+)

@@ -45,6 +45,7 @@ std::vector<Trade> OrderBook::matchBuyOrder(Order& incomingOrder){
         restingSellOrder.quantity -= tradedQuantity;
 
         if(restingSellOrder.quantity == 0){
+            orderIndex_.erase(restingSellOrder.id);
             sellQueue.pop_front();
         }
 
@@ -83,6 +84,7 @@ std::vector<Trade> OrderBook::matchSellOrder(Order& incomingOrder) {
         restingBuyOrder.quantity -= tradedQuantity;
 
         if(restingBuyOrder.quantity == 0){
+            orderIndex_.erase(restingBuyOrder.id);
             buyQueue.pop_front();
         }
 
@@ -94,11 +96,63 @@ std::vector<Trade> OrderBook::matchSellOrder(Order& incomingOrder) {
     return trades;
 }
 
+bool OrderBook::cancelOrder(std::uint64_t orderId) {
+    auto indexIt = orderIndex_.find(orderId);
+
+    if(indexIt == orderIndex_.end()){
+        return false;
+    }
+
+    const auto location  = indexIt->second;
+    if(location.side == Side::Buy) {
+        auto priceLevelIt = buyOrders_.find(location.price);
+
+        if(priceLevelIt != buyOrders_.end()) {
+            priceLevelIt->second.erase(location.iterator);
+
+            if(priceLevelIt->second.empty()) {
+                buyOrders_.erase(priceLevelIt);
+            }
+        }
+    } else {
+        auto priceLevelIt = sellOrders_.find(location.price);
+
+        if (priceLevelIt != sellOrders_.end()) {
+            priceLevelIt->second.erase(location.iterator);
+
+            if (priceLevelIt->second.empty()) {
+                sellOrders_.erase(priceLevelIt);
+            }
+        }
+    }
+
+    orderIndex_.erase(indexIt);
+    return true;
+}
+
 void OrderBook::addToBook(const Order& order) {
     if(order.side == Side::Buy) {
-        buyOrders_[order.price].push_back(order);
+        auto& queue = buyOrders_[order.price];
+        queue.push_back(order);
+
+        auto iterator = std::prev(queue.end());
+
+        orderIndex_[order.id] = OrderLocation {
+            .side = order.side,
+            .price = order.price,
+            .iterator = iterator
+        };
     } else {
-        sellOrders_[order.price].push_back(order);
+        auto& queue = sellOrders_[order.price];
+        queue.push_back(order);
+
+        auto iterator = std::prev(queue.end());
+
+        orderIndex_[order.id] = OrderLocation{
+            .side = order.side,
+            .price = order.price,
+            .iterator = iterator
+        };
     }
 }
 
